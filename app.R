@@ -107,20 +107,39 @@ server <- function(input, output) {
     
     colnames(taxable_income) = c("Year 1", "Year 2", "Year 3", "Year 4", "Year 5")
   
-    row <- data.frame(matrix(c(input$employment_earnings_1,
+    row_1 <- data.frame(matrix(c(input$employment_earnings_1,
            input$employment_earnings_2,
            input$employment_earnings_3,
            input$employment_earnings_4,
            input$employment_earnings_5),
            nrow = 1,
            ncol = 5))
+    
+    row_2 <- data.frame(matrix(c(input$employment_earnings_self_partn_1,
+                                 input$employment_earnings_self_partn_2,
+                                 input$employment_earnings_self_partn_3,
+                                 input$employment_earnings_self_partn_4,
+                                 input$employment_earnings_self_partn_5),
+                               nrow = 1,
+                               ncol = 5))
+    
+    total_row <- row_1 + row_2
            
-    colnames(row) <- colnames(taxable_income)
+    colnames(row_1) <- colnames(taxable_income)
+    colnames(row_2) <- colnames(taxable_income)
+    colnames(total_row) <- colnames(taxable_income)
+    
+    
   
     taxable_income <- taxable_income %>%
-    rbind(row)
+      rbind(row_1) %>%
+      rbind(row_2) %>%
+      rbind(total_row)
     
-    rownames(taxable_income) <- c("Earnings from employment")
+    rownames(taxable_income) <- c("Earnings from employment",
+                                  "Earnings from self employment & partnerships",
+                                  
+                                  "Taxable Income")
     
     taxable_income
   })
