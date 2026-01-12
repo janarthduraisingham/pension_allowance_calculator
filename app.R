@@ -19,9 +19,10 @@ ui <- page_fluid(
       numericInput("foreign_interest_div_1", "Foreign interest & dividends", 1),
       numericInput("rental_income_1", "Rental income", 1),
       numericInput("trust_income_1", "Income from trust", 1),
+      numericInput("tax_relief_1", "Tax relief that was not given at source", 1),
       numericInput("gross_contribution_relief_source_1", "Gross contributions where relief at source given", 1),
-      numericInput("salary_sacrifice_contributions_1", "Contributions by salary sacrifice & flexible remuneration", 0),
-      numericInput("taxed_lump_sum_benefits_1", "Taxed lump sum benefits received", 0)
+      numericInput("salary_sacrifice_contributions_1", "Contributions by salary sacrifice & flexible remuneration", 1),
+      numericInput("taxed_lump_sum_benefits_1", "Taxed lump sum benefits received", 1)
 
     ),
     
@@ -36,9 +37,10 @@ ui <- page_fluid(
       numericInput("foreign_interest_div_2", "Foreign interest & dividends", 1),
       numericInput("rental_income_2", "Rental income", 1),
       numericInput("trust_income_2", "Income from trust", 1),
+      numericInput("tax_relief_2", "Tax relief that was not given at source", 1),
       numericInput("gross_contribution_relief_source_2", "Gross contributions where relief at source given", 1),
-      numericInput("salary_sacrifice_contributions_2", "Contributions by salary sacrifice & flexible remuneration", 0),
-      numericInput("taxed_lump_sum_benefits_2", "Taxed lump sum benefits received", 0)
+      numericInput("salary_sacrifice_contributions_2", "Contributions by salary sacrifice & flexible remuneration", 1),
+      numericInput("taxed_lump_sum_benefits_2", "Taxed lump sum benefits received", 1)
     ),
     
     card(
@@ -52,9 +54,10 @@ ui <- page_fluid(
       numericInput("foreign_interest_div_3", "Foreign interest & dividends", 1),
       numericInput("rental_income_3", "Rental income", 1),
       numericInput("trust_income_3", "Income from trust", 1),
+      numericInput("tax_relief_3", "Tax relief that was not given at source", 1),
       numericInput("gross_contribution_relief_source_3", "Gross contributions where relief at source given", 1),
-      numericInput("salary_sacrifice_contributions_3", "Contributions by salary sacrifice & flexible remuneration", 0),
-      numericInput("taxed_lump_sum_benefits_3", "Taxed lump sum benefits received", 0)
+      numericInput("salary_sacrifice_contributions_3", "Contributions by salary sacrifice & flexible remuneration", 1),
+      numericInput("taxed_lump_sum_benefits_3", "Taxed lump sum benefits received", 1)
     ),
     
     card(
@@ -68,9 +71,10 @@ ui <- page_fluid(
       numericInput("foreign_interest_div_4", "Foreign interest & dividends", 1),
       numericInput("rental_income_4", "Rental income", 1),
       numericInput("trust_income_4", "Income from trust", 1),
+      numericInput("tax_relief_4", "Tax relief that was not given at source", 1),
       numericInput("gross_contribution_relief_source_4", "Gross contributions where relief at source given", 1),
-      numericInput("salary_sacrifice_contributions_4", "Contributions by salary sacrifice & flexible remuneration", 0),
-      numericInput("taxed_lump_sum_benefits_4", "Taxed lump sum benefits received", 0)
+      numericInput("salary_sacrifice_contributions_4", "Contributions by salary sacrifice & flexible remuneration", 1),
+      numericInput("taxed_lump_sum_benefits_4", "Taxed lump sum benefits received", 1)
     ),
     
     card(
@@ -84,9 +88,10 @@ ui <- page_fluid(
       numericInput("foreign_interest_div_5", "Foreign interest & dividends", 1),
       numericInput("rental_income_5", "Rental income", 1),
       numericInput("trust_income_5", "Income from trust", 1),
+      numericInput("tax_relief_5", "Tax relief that was not given at source", 1),
       numericInput("gross_contribution_relief_source_5", "Gross contributions where relief at source given", 1),
-      numericInput("salary_sacrifice_contributions_5", "Contributions by salary sacrifice & flexible remuneration", 0),
-      numericInput("taxed_lump_sum_benefits_5", "Taxed lump sum benefits received", 0)
+      numericInput("salary_sacrifice_contributions_5", "Contributions by salary sacrifice & flexible remuneration", 1),
+      numericInput("taxed_lump_sum_benefits_5", "Taxed lump sum benefits received", 1)
     ),
     
   ),
@@ -94,6 +99,11 @@ ui <- page_fluid(
   card(
     card_header("Taxable income working"),
     DTOutput("taxable_income")
+  ),
+  
+  card(
+    card_header("Net income working"),
+    DTOutput("net_income")
   ),
   
   card(
@@ -226,13 +236,47 @@ server <- function(input, output) {
   
   output$taxable_income = renderDT(taxable_income())
   
-  threshold_income <- reactive({
+  net_income <- reactive({
     
     row_1 <- taxable_income()
     
+    row_1 <- row_1[nrow(taxable_income()), ]
+    
+    row_2 <- data.frame(matrix(c(input$tax_relief_1,
+                                 input$tax_relief_2,
+                                 input$tax_relief_3,
+                                 input$tax_relief_4,
+                                 input$tax_relief_5),
+                               nrow = 1,
+                               ncol = 5)) * -1
+    
+    total_row <- row_1 + row_2
+    
+    colnames(row_2) <- my_colnames()
+    colnames(total_row) <- my_colnames()
+    
+    net_income <- row_1 %>%
+      rbind(row_2) %>%
+      rbind(total_row)
+    
+    rownames(net_income) <- c("Taxable income",
+                              "(Less tax reliefs where not given at source)",
+                              "Net income")
+    
+    net_income
+    
+  })
+  
+  output$net_income = renderDT(net_income())
+  
+  
+  threshold_income <- reactive({
+    
+    row_1 <- net_income()
+    
     req(nrow(row_1) > 0)
     
-    row_1 <- row_1[nrow(taxable_income()), ]
+    row_1 <- row_1[nrow(net_income()), ]
     
     row_2 <- data.frame(matrix(c(input$gross_contribution_relief_source_1,
                                  input$gross_contribution_relief_source_2,
@@ -242,17 +286,39 @@ server <- function(input, output) {
                                nrow = 1,
                                ncol = 5)) * -1
     
-    total_row <- row_1 + row_2
+    row_3 <- data.frame(matrix(c(input$taxed_lump_sum_benefits_1,
+                                 input$taxed_lump_sum_benefits_2,
+                                 input$taxed_lump_sum_benefits_3,
+                                 input$taxed_lump_sum_benefits_4,
+                                 input$taxed_lump_sum_benefits_5),
+                               nrow = 1,
+                               ncol = 5)) * -1
+    
+    row_4 <- data.frame(matrix(c(input$salary_sacrifice_contributions_5,
+                                 input$salary_sacrifice_contributions_5,
+                                 input$salary_sacrifice_contributions_5,
+                                 input$salary_sacrifice_contributions_5,
+                                 input$salary_sacrifice_contributions_5),
+                               nrow = 1,
+                               ncol = 5))
+
+    total_row <- row_1 + row_2 + row_3 + row_4
     
     colnames(row_2) = my_colnames()
+    colnames(row_3) = my_colnames()
+    colnames(row_4) = my_colnames()
     colnames(total_row) = my_colnames()
     
     threshold_income <- row_1 %>%
       rbind(row_2) %>%
+      rbind(row_3) %>%
+      rbind(row_4) %>%
       rbind(total_row)
     
-    rownames(threshold_income) <- c("Taxable income",
-                                    "Less gross pension contributions where relief given at source",
+    rownames(threshold_income) <- c("Net income",
+                                    "(Less gross pension contributions where relief given at source)",
+                                    "(Less taxed lump sum death benefits from registered pensions)",
+                                    "Reductions in employment income for contributions via salary sacrifice or felxible remuneration",
                                     
                                     "Threshold income")
     
