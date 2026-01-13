@@ -4,7 +4,7 @@ library(tidyverse)
 library(DT)
 
 ui <- page_fluid(
-  titlePanel("Pension Allowance Calculator"),
+  titlePanel("Pension Allowance Calculator (post 16/17)"),
   layout_columns(
     col_widths = c(2, 2, 2, 2, 2),
     
@@ -131,6 +131,11 @@ ui <- page_fluid(
   card(
     card_header("Adjusted income working"),
     DTOutput("adjusted_income")
+  ),
+  
+  card(
+    card_header("Tapered allowance working"),
+    DTOutput("tapered_allowance")
   )
   
   
@@ -145,6 +150,11 @@ server <- function(input, output) {
                             input$year_3,
                             input$year_4,
                             input$year_5)))
+  dates <- reactive(c(input$year_1,
+                                   input$year_2,
+                                   input$year_3,
+                                   input$year_4,
+                                   input$year_5))
   
   taxable_income = reactive({
     
@@ -428,6 +438,59 @@ server <- function(input, output) {
   
   output$adjusted_income = renderDT(adjusted_income())
   
+  tapered_allowance <- reactive({
+    
+    tapered_allowance <- data.frame(matrix(NA,
+                                           nrow = 0,
+                                           ncol = 5))
+    
+    colnames(tapered_allowance) <- my_colnames()
+    
+    row_0 <- data.frame(matrix(format(dates(), "%Y"), nrow  = 1, ncol = 5))
+    
+    row_1 <- case_when(
+      format(dates(), "%Y") <= "2023" ~ 40000,
+      TRUE ~ 60000
+    )
+    
+    row_1 <- data.frame(matrix(row_1, nrow = 1, ncol = 5))
+    
+    row_2 <- case_when(
+      format(dates(), "%Y") >= "2024" ~ 200000,
+      format(dates(), "%Y") >= "2020" ~ 200000,
+      TRUE ~ 150000
+    )
+    
+    row_3 <- case_when(
+      format(dates(), "%Y") >= "2024" ~ 260000,
+      format(dates(), "%Y") >= "2020" ~ 240000,
+      TRUE ~ 110000
+    )
+    
+    row_2 <- data.frame(matrix(row_2, nrow = 1, ncol = 5))
+    row_3 <- data.frame(matrix(row_3, nrow = 1, ncol = 5))
+    
+    colnames(row_0) <- my_colnames()
+    colnames(row_1) <- my_colnames()
+    colnames(row_2) <- my_colnames()
+    colnames(row_3) <- my_colnames()
+    
+    tapered_allowance <- tapered_allowance %>%
+      rbind(row_0) %>%
+      rbind(row_1) %>%
+      rbind(row_2) %>%
+      rbind(row_3)
+    
+    rownames(tapered_allowance) <- c("Year end",
+                                     "Maximum allowance",
+                                     "Threshold income threshold",
+                                     "Adjusted income threshold")
+    
+    tapered_allowance
+    
+  })
+  
+  output$tapered_allowance <- renderDT(tapered_allowance())
   
 }
 
