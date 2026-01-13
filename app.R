@@ -134,8 +134,13 @@ ui <- page_fluid(
   ),
   
   card(
+    card_header("Tapered allowance thresholds"),
+    DTOutput("tapered_allowance_thresholds")
+  ),
+  
+  card(
     card_header("Tapered allowance working"),
-    DTOutput("tapered_allowance")
+    DTOutput("tapered_allowance_working")
   )
   
   
@@ -144,6 +149,8 @@ ui <- page_fluid(
 )
 
 server <- function(input, output) {
+  
+  options(scipen = 999)
   
   my_colnames <- reactive(paste("y/e ", c(input$year_1,
                             input$year_2,
@@ -438,7 +445,7 @@ server <- function(input, output) {
   
   output$adjusted_income = renderDT(adjusted_income())
   
-  tapered_allowance <- reactive({
+  tapered_allowance_thresholds <- reactive({
     
     tapered_allowance <- data.frame(matrix(NA,
                                            nrow = 0,
@@ -490,7 +497,64 @@ server <- function(input, output) {
     
   })
   
-  output$tapered_allowance <- renderDT(tapered_allowance())
+  output$tapered_allowance_thresholds <- renderDT(tapered_allowance_thresholds())
+  
+  tapered_allowance_working <- reactive({
+    
+    tapered_allowance_working <- data.frame(matrix(NA,
+                                           nrow = 0,
+                                           ncol = 5))
+    
+    row_1 <- tapered_allowance_thresholds()
+    row_1 <- row_1["Threshold income threshold", ]
+    
+    row_2 <- threshold_income()
+    row_2 <- as.numeric(row_2[nrow(row_2), ]) *-1
+    
+    
+    
+    row_3 <- as.numeric(row_1) + as.numeric(row_2)
+    
+    row_4 <- data.frame(matrix(NA,
+                               nrow = 1,
+                               ncol = 5))
+    
+    row_5 <- tapered_allowance_thresholds()
+    row_5 <- row_5["Adjusted income threshold", ]
+    
+    row_6 <- (adjusted_income()['Adjusted income', ])*-1
+
+    row_7 <- as.numeric(row_5)[[1]] + as.numeric(row_6[[1]])
+    #row_7 <- as.numeric(row_5) + as.numeric(row_6)
+    
+    colnames(row_4) <- my_colnames()
+    colnames(row_5) <- my_colnames()
+    colnames(row_6) <- my_colnames()
+    colnames(row_7) <- my_colnames()
+    
+    tapered_allowance_working <- tapered_allowance_working %>%
+      rbind(row_1) %>%
+      rbind(row_2) %>%
+      rbind(row_3) %>%
+      rbind(row_4) %>%
+      rbind(row_5) %>%
+      rbind(row_6) %>%
+      rbind(row_7)
+    
+    rownames(tapered_allowance_working) <- c("Threshold income threshold",
+                                             "(Less Threshold income)",
+                                             "Remaining Threshold income",
+                                             "",
+                                             "Adjusted income threshold",
+                                             "(Less Adjusted income)",
+                                             "Remaining Adjusted income")
+    
+    tapered_allowance_working
+    
+  })
+  
+  output$tapered_allowance_working <- renderDT(tapered_allowance_working())
+  
   
 }
 
